@@ -1,0 +1,183 @@
+// Esquema de gestión de vacaciones.
+// Las fechas de vacaciones son fechas de calendario (@db.Date), sin zona horaria.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  EMPLOYEE
+  ADMIN
+}
+
+// Empresa a la que pertenece cada usuario. Comparten administradores, política y festivos.
+enum Company {
+  FLORAMARKET
+  GALACTICBLUM
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum CalculationType {
+  WORKING_DAYS // sólo días laborables (excluye fines de semana según la política y festivos)
+  CALENDAR_DAYS // días naturales
+}
+
+enum LedgerEntryType {
+  ALLOCATION // asignación anual de días
+  ADJUSTMENT // ajuste manual (+/-)
+  CONSUMPTION // descuento por una solicitud aprobada (negativo)
+  REFUND // devolución por cancelación de una solicitud aprobada (positivo)
+}
+
+model Department {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users User[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(EMPLOYEE)
+  company      Company  @default(FLORAMARKET)
+  departmentId String?
+  hireDate     DateTime @db.Date
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  department       Department?       @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  requests         VacationRequest[] @relation("RequestEmployee")
+  reviewedRequests VacationRequest[] @relation("RequestReviewer")
+  ledgerEntries    LedgerEntry[]     @relation("LedgerEmployee")
+  createdEntries   LedgerEntry[]     @relation("LedgerCreator")
+  auditLogs        AuditLog[]
+
+  @@index([departmentId])
+  @@index([company])
+  @@index([role, isActive])
+}
+
+// Las políticas son versionables: una política nunca se edita retroactivamente,
+// se crea una nueva con otro `effectiveFrom`. Cada solicitud guarda un snapshot.
+model VacationPolicy {
+  id                  String          @id @default(cuid())
+  name                String
+  annualDays          Int
+  calculationType     CalculationType @default(WORKING_DAYS)
+  // Días de la semana laborables, ISO 1 (lunes) .. 7 (domingo).
+  workingWeekdays     Int[]           @default([1, 2, 3, 4, 5])
+  excludeHolidays     Boolean         @default(true)
+  allowFutureRequests Boolean         @default(true)
+  maxAdvanceDays      Int? // null = sin límite
+  minNoticeDays       Int             @default(0)
+  requiresApproval    Boolean         @default(true)
+  holidayRegion       String? // null = festivos sin región (globales)
+  effectiveFrom       DateTime        @db.Date
+  isDefault           Boolean         @default(false)
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  requests VacationRequest[]
+
+  @@index([effectiveFrom])
+}
+
+model Holiday {
+  id     String   @id @default(cuid())
+  date   DateTime @db.Date
+  name   String
+  region String   @default("") // "" = aplica a todas las regiones
+
+  @@unique([date, region])
+  @@index([date])
+}
+
+model VacationRequest {
+  id              String        @id @default(cuid())
+  employeeId      String
+  startDate       DateTime      @db.Date
+  endDate         DateTime      @db.Date
+  totalDays       Int
+  status          RequestStatus @default(PENDING)
+  reason          String?
+  rejectionReason String?
+  reviewedById    String?
+  reviewedAt      DateTime?
+  policyId        String
+  // Copia de las reglas aplicadas al calcular `totalDays`, para que cambios
+  // futuros de política no alteren solicitudes históricas.
+  policySnapshot  Json
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  employee      User           @relation("RequestEmployee", fields: [employeeId], references: [id], onDelete: Restrict)
+  reviewedBy    User?          @relation("RequestReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  policy        VacationPolicy @relation(fields: [policyId], references: [id], onDelete: Restrict)
+  ledgerEntries LedgerEntry[]
+
+  @@index([employeeId, status])
+  @@index([status, createdAt])
+  @@index([startDate, endDate])
+}
+
+// Libro mayor de saldos: el saldo de un empleado/año es la suma de `days`.
+// Nunca se edita ni se borra un movimiento; las correcciones son nuevos movimientos.
+model LedgerEntry {
+  id          String          @id @default(cuid())
+  employeeId  String
+  year        Int
+  type        LedgerEntryType
+  days        Int // con signo: ALLOCATION/REFUND > 0, CONSUMPTION < 0, ADJUSTMENT +/-
+  reason      String?
+  requestId   String?
+  createdById String?
+  createdAt   DateTime        @default(now())
+
+  employee  User             @relation("LedgerEmployee", fields: [employeeId], references: [id], onDelete: Restrict)
+  request   VacationRequest? @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  createdBy User?            @relation("LedgerCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  // Evita dobles descuentos/devoluciones del mismo tipo para una misma solicitud y año.
+  @@unique([requestId, type, year])
+  @@index([employeeId, year])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  action     String
+  entityType String
+  entityId   String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@index([createdAt])
+}
+
+// Intentos de login fallidos por clave (email en minúsculas). Compartido entre instancias.
+model LoginThrottle {
+  key         String   @id
+  count       Int
+  windowStart DateTime @default(now())
+}

@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: vacaciones
+          POSTGRES_PASSWORD: ci_password
+          POSTGRES_DB: vacaciones
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U vacaciones" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://vacaciones:ci_password@localhost:5432/vacaciones?schema=public
+      AUTH_SECRET: ci-secret-only-for-build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run test:int # crea y migra la base "vacaciones_test" automáticamente
+      - run: npm run build

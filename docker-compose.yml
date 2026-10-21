@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: vacaciones-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-vacaciones}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vacaciones_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-vacaciones}
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vacaciones} -d ${POSTGRES_DB:-vacaciones}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:

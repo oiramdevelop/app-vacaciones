@@ -1,0 +1,66 @@
+# Producción en un único servidor: Caddy (HTTPS automático) + app + PostgreSQL. Guía completa en DEPLOY.md.
+#
+#   cp .env.production.example .env.production      # y rellena los valores
+#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+#
+# Copia de seguridad: scripts/backup.sh (programada con cron, ver DEPLOY.md).
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?define POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?define POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:?define POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # Sin `ports`: la base de datos sólo es accesible desde la red interna de Docker.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    build: { context: ., target: migrator }
+    profiles: ["tools"]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public
+    depends_on:
+      db: { condition: service_healthy }
+
+  app:
+    build: { context: ., target: runner }
+    restart: unless-stopped
+    # Sin `ports`: sólo Caddy la alcanza por la red interna.
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public
+      AUTH_SECRET: ${AUTH_SECRET:?define AUTH_SECRET}
+      AUTH_URL: https://${APP_DOMAIN:?define APP_DOMAIN}
+      AUTH_TRUST_HOST: "true"
+      APP_TIMEZONE: ${APP_TIMEZONE:-Europe/Madrid}
+    depends_on:
+      db: { condition: service_healthy }
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?define APP_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:?define ACME_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:
