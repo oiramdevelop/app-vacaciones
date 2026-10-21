@@ -5,7 +5,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 # --- Dependencias (todas, incluidas las de desarrollo: hacen falta para compilar y migrar)
 FROM base AS deps
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json prisma.config.ts ./
+COPY prisma/schema.prisma ./prisma/schema.prisma
 RUN npm ci
 
 # --- Compilación
