@@ -8,22 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Field, FormErrors, Select } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { COMPANIES, COMPANY_LABELS, type Company } from "@/features/companies";
 import { createEmployeeAction, updateEmployeeAction } from "../actions";
 import { employeeCreateSchema, employeeUpdateSchema } from "../schemas";
-
-export interface DepartmentOption {
-  id: string;
-  name: string;
-}
 
 export interface EmployeeFormTarget {
   id: string;
   name: string;
   email: string;
   role: "EMPLOYEE" | "ADMIN";
-  company: Company;
-  departmentId: string | null;
   hireDate: string;
 }
 
@@ -31,8 +23,6 @@ interface FormValues {
   id: string;
   name: string;
   email: string;
-  company: Company;
-  departmentId: string;
   hireDate: string;
   role: "EMPLOYEE" | "ADMIN";
   password: string;
@@ -48,12 +38,10 @@ function generatePassword(length = 16): string {
 
 export function EmployeeDialog({
   employee,
-  departments,
   defaultDays,
   trigger,
 }: {
   employee?: EmployeeFormTarget;
-  departments: DepartmentOption[];
   defaultDays: number;
   trigger: React.ReactNode;
 }) {
@@ -74,8 +62,6 @@ export function EmployeeDialog({
       id: employee?.id ?? "",
       name: employee?.name ?? "",
       email: employee?.email ?? "",
-      company: employee?.company ?? "FLORAMARKET",
-      departmentId: employee?.departmentId ?? "",
       hireDate: employee?.hireDate ?? "",
       role: employee?.role ?? "EMPLOYEE",
       password: "",
@@ -89,8 +75,8 @@ export function EmployeeDialog({
     startTransition(async () => {
       const result =
         mode === "create"
-          ? await createEmployeeAction({ name: v.name, email: v.email, company: v.company, departmentId: v.departmentId, hireDate: v.hireDate, role: v.role, password: v.password, initialDays: v.initialDays })
-          : await updateEmployeeAction({ id: v.id, name: v.name, email: v.email, company: v.company, departmentId: v.departmentId, hireDate: v.hireDate, role: v.role, newPassword: v.newPassword });
+          ? await createEmployeeAction({ name: v.name, email: v.email, hireDate: v.hireDate, role: v.role, password: v.password, initialDays: v.initialDays })
+          : await updateEmployeeAction({ id: v.id, name: v.name, email: v.email, hireDate: v.hireDate, role: v.role, newPassword: v.newPassword });
       if (result.ok) {
         setOpen(false);
         reset();
@@ -117,21 +103,6 @@ export function EmployeeDialog({
             </Field>
             <Field label="Email" htmlFor="emp-email" error={fieldErrors.email?.message} className="sm:col-span-2">
               <Input id="emp-email" type="email" autoComplete="off" {...register("email")} />
-            </Field>
-            <Field label="Empresa" htmlFor="emp-company" error={fieldErrors.company?.message}>
-              <Select id="emp-company" {...register("company")}>
-                {COMPANIES.map((c) => (
-                  <option key={c} value={c}>{COMPANY_LABELS[c]}</option>
-                ))}
-              </Select>
-            </Field>
-            <Field label="Departamento" htmlFor="emp-dept">
-              <Select id="emp-dept" {...register("departmentId")}>
-                <option value="">Sin departamento</option>
-                {departments.map((d) => (
-                  <option key={d.id} value={d.id}>{d.name}</option>
-                ))}
-              </Select>
             </Field>
             <Field label="Fecha de incorporación" htmlFor="emp-hire" error={fieldErrors.hireDate?.message}>
               <Input id="emp-hire" type="date" {...register("hireDate")} />

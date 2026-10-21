@@ -3,7 +3,7 @@
 import "dotenv/config";
 import bcrypt from "bcryptjs";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient, type Company, type RequestStatus } from "../src/generated/prisma/client";
+import { PrismaClient, type RequestStatus } from "../src/generated/prisma/client";
 
 if (process.env.NODE_ENV === "production") {
   throw new Error("El seed de desarrollo no puede ejecutarse con NODE_ENV=production");
@@ -33,15 +33,15 @@ interface SeedRequest {
   createdAt: string;
 }
 
-const EMPLOYEES: { name: string; email: string; company: Company; department: string; hireDate: string }[] = [
-  { name: "Lucía Fernández", email: "lucia.fernandez@ejemplo.test", company: "FLORAMARKET", department: "Tecnología", hireDate: "2021-03-01" },
-  { name: "Javier Soto", email: "javier.soto@ejemplo.test", company: "FLORAMARKET", department: "Tecnología", hireDate: "2022-09-12" },
-  { name: "Diego Herrera", email: "diego.herrera@ejemplo.test", company: "GALACTICBLUM", department: "Tecnología", hireDate: "2020-01-15" },
-  { name: "Marta Ruiz", email: "marta.ruiz@ejemplo.test", company: "FLORAMARKET", department: "Operaciones", hireDate: "2019-06-03" },
-  { name: "Pedro Navarro", email: "pedro.navarro@ejemplo.test", company: "GALACTICBLUM", department: "Operaciones", hireDate: "2023-02-20" },
-  { name: "Sara Molina", email: "sara.molina@ejemplo.test", company: "GALACTICBLUM", department: "Operaciones", hireDate: "2018-11-05" },
-  { name: "Elena Vidal", email: "elena.vidal@ejemplo.test", company: "FLORAMARKET", department: "Administración", hireDate: "2022-04-18" },
-  { name: "Ana Castillo", email: "ana.castillo@ejemplo.test", company: "GALACTICBLUM", department: "Administración", hireDate: "2024-01-08" },
+const EMPLOYEES = [
+  { name: "Lucía Fernández", email: "lucia.fernandez@ejemplo.test", hireDate: "2021-03-01" },
+  { name: "Javier Soto", email: "javier.soto@ejemplo.test", hireDate: "2022-09-12" },
+  { name: "Diego Herrera", email: "diego.herrera@ejemplo.test", hireDate: "2020-01-15" },
+  { name: "Marta Ruiz", email: "marta.ruiz@ejemplo.test", hireDate: "2019-06-03" },
+  { name: "Pedro Navarro", email: "pedro.navarro@ejemplo.test", hireDate: "2023-02-20" },
+  { name: "Sara Molina", email: "sara.molina@ejemplo.test", hireDate: "2018-11-05" },
+  { name: "Elena Vidal", email: "elena.vidal@ejemplo.test", hireDate: "2022-04-18" },
+  { name: "Ana Castillo", email: "ana.castillo@ejemplo.test", hireDate: "2024-01-08" },
 ];
 
 const REQUESTS: SeedRequest[] = [
@@ -66,12 +66,6 @@ async function main() {
   await db.ledgerEntry.deleteMany();
   await db.vacationRequest.deleteMany();
   await db.user.deleteMany();
-
-  const departments = new Map<string, string>();
-  for (const name of ["Tecnología", "Operaciones", "Administración"]) {
-    const d = await db.department.upsert({ where: { name }, update: {}, create: { name } });
-    departments.set(name, d.id);
-  }
 
   let policy = await db.vacationPolicy.findFirst({ where: { isDefault: true } });
   policy ??= await db.vacationPolicy.create({
@@ -104,7 +98,6 @@ async function main() {
       email: "admin@ejemplo.test",
       passwordHash,
       role: "ADMIN",
-      departmentId: departments.get("Administración"),
       hireDate: utcDate("2017-01-09"),
     },
   });
@@ -117,8 +110,6 @@ async function main() {
         email: e.email,
         passwordHash,
         role: "EMPLOYEE",
-        company: e.company,
-        departmentId: departments.get(e.department),
         hireDate: utcDate(e.hireDate),
       },
     });

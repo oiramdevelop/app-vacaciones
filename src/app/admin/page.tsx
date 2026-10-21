@@ -5,10 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatCard } from "@/components/layout/stat-card";
-import { CompanyTabs } from "@/features/admin/components/company-filter";
 import { RequestActions } from "@/features/admin/components/request-actions";
 import { VacationsByMonthChart } from "@/features/admin/components/vacations-by-month-chart";
-import { COMPANY_LABELS, parseCompany } from "@/features/companies";
 import { yearOf } from "@/features/vacations/domain/dates";
 import { formatRange } from "@/lib/format";
 import { db } from "@/server/db/client";
@@ -18,19 +16,14 @@ import { todayISO } from "@/server/vacations/today";
 
 export const metadata: Metadata = { title: "Panel de administración" };
 
-export default async function AdminDashboardPage({ searchParams }: { searchParams: Promise<{ empresa?: string }> }) {
+export default async function AdminDashboardPage() {
   await requireRole("ADMIN");
-  const company = parseCompany((await searchParams).empresa);
   const today = todayISO();
-  const { stats, perMonth, pending, upcoming } = await getAdminDashboard(db, today, company);
+  const { stats, perMonth, pending, upcoming } = await getAdminDashboard(db, today);
 
   return (
     <>
-      <PageHeader
-        title="Panel de administración"
-        description={company ? `Vista general de ${COMPANY_LABELS[company]}.` : "Vista general de la plantilla y las solicitudes."}
-        actions={<CompanyTabs basePath="/admin" current={company} />}
-      />
+      <PageHeader title="Panel de administración" description="Vista general de la plantilla y las solicitudes." />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Empleados activos" value={stats.activeEmployees} icon={Users} tone="primary" />
@@ -54,7 +47,7 @@ export default async function AdminDashboardPage({ searchParams }: { searchParam
           <CardHeader className="flex-row items-center justify-between">
             <CardTitle>Requieren aprobación</CardTitle>
             <Button asChild variant="ghost" size="sm">
-              <Link href={company ? `/admin/solicitudes?empresa=${company}` : "/admin/solicitudes"}>Ver todas</Link>
+              <Link href="/admin/solicitudes">Ver todas</Link>
             </Button>
           </CardHeader>
           <CardContent>
@@ -67,7 +60,7 @@ export default async function AdminDashboardPage({ searchParams }: { searchParam
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium">{r.employee}</p>
                       <p className="text-xs text-muted-foreground">
-                        {formatRange(r.start, r.end)} · {r.totalDays} días · {COMPANY_LABELS[r.company]}{r.department ? ` · ${r.department}` : ""}
+                        {formatRange(r.start, r.end)} · {r.totalDays} días
                       </p>
                     </div>
                     <RequestActions
@@ -96,7 +89,7 @@ export default async function AdminDashboardPage({ searchParams }: { searchParam
                   <li key={r.id} className="py-3">
                     <p className="text-sm font-medium">{r.employee}</p>
                     <p className="text-xs text-muted-foreground">
-                      {formatRange(r.start, r.end)} · {r.totalDays} días · {COMPANY_LABELS[r.company]}
+                      {formatRange(r.start, r.end)} · {r.totalDays} días
                     </p>
                   </li>
                 ))}

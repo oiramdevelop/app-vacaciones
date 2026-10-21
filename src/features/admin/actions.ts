@@ -5,15 +5,8 @@ import type { ActionResult } from "@/lib/action-result";
 import { assertRole } from "@/server/auth/session";
 import { approveRequest, cancelApprovedRequest, rejectRequest } from "@/server/admin/review-service";
 import { adjustBalance, allocateAnnualDays, createEmployee, setEmployeeActive, updateEmployee } from "@/server/admin/employee-service";
-import {
-  addHoliday,
-  createDepartment,
-  deleteDepartment,
-  removeHoliday,
-  renameDepartment,
-  savePolicyVersion,
-} from "@/server/admin/config-service";
-import { rejectSchema, type AdjustBalanceInput, type DepartmentInput, type EmployeeCreateInput, type EmployeeUpdateInput, type HolidayInput, type PolicyInput } from "./schemas";
+import { addHoliday, removeHoliday, savePolicyVersion } from "@/server/admin/config-service";
+import { rejectSchema, type AdjustBalanceInput, type EmployeeCreateInput, type EmployeeUpdateInput, type HolidayInput, type PolicyInput } from "./schemas";
 
 /** Ejecuta un servicio como administrador y refresca las pantallas afectadas si tuvo éxito. */
 async function run<T extends ActionResult>(paths: string[], fn: (actor: Awaited<ReturnType<typeof assertRole>>) => Promise<T>): Promise<T> {
@@ -65,13 +58,4 @@ export async function addHolidayAction(input: HolidayInput) {
 }
 export async function removeHolidayAction(id: string) {
   return run(CONFIG_PATHS, (a) => removeHoliday(a, id));
-}
-export async function createDepartmentAction(input: DepartmentInput) {
-  return run(CONFIG_PATHS, (a) => createDepartment(a, input));
-}
-export async function renameDepartmentAction(id: string, input: DepartmentInput) {
-  return run(CONFIG_PATHS, (a) => renameDepartment(a, id, input));
-}
-export async function deleteDepartmentAction(id: string) {
-  return run(CONFIG_PATHS, (a) => deleteDepartment(a, id));
 }

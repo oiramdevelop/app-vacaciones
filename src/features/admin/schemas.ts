@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { isValidISODate } from "@/features/vacations/domain/dates";
-import { companySchema } from "@/features/companies";
 
 const id = z.string().min(1).max(64);
 const isoDate = z.string().refine(isValidISODate, "Fecha no válida");
@@ -9,8 +8,6 @@ const password = z.string().min(12, "Mínimo 12 caracteres").max(100, "Máximo 1
 export const employeeBaseSchema = z.object({
   name: z.string().trim().min(2, "Indica el nombre").max(100),
   email: z.string().trim().toLowerCase().email("Email no válido").max(254),
-  company: companySchema,
-  departmentId: z.string().max(64), // "" = sin departamento
   hireDate: isoDate,
   role: z.enum(["EMPLOYEE", "ADMIN"]),
 });
@@ -70,9 +67,6 @@ export const holidaySchema = z.object({
   region: z.string().trim().max(50),
 });
 export type HolidayInput = z.input<typeof holidaySchema>;
-
-export const departmentSchema = z.object({ name: z.string().trim().min(2, "Mínimo 2 caracteres").max(80) });
-export type DepartmentInput = z.input<typeof departmentSchema>;
 
 export const idSchema = id;
 export const yearSchema = z.number().int().min(2000).max(2100);

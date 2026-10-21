@@ -3,7 +3,6 @@ import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { computeYearBalance, type YearBalance } from "@/features/vacations/domain/balance";
 import { fromUTCDate, toUTCDate, type ISODate } from "@/features/vacations/domain/dates";
 import type { RequestRules } from "@/features/vacations/domain/validate-request";
-import type { Company } from "@/features/companies";
 import { daysByYearOf } from "./snapshot";
 
 export type DbClient = PrismaClient | Prisma.TransactionClient;
@@ -138,7 +137,6 @@ export async function listActiveRanges(db: DbClient, employeeId: string, from: I
 export interface CalendarEvent {
   id: string;
   employeeName: string;
-  department: string | null;
   start: ISODate;
   end: ISODate;
 }
@@ -147,27 +145,22 @@ export interface CalendarEvent {
 export async function listApprovedAbsences(
   db: DbClient,
   window: { from: ISODate; to: ISODate },
-  scope: { company?: Company; departmentId?: string | null; employeeId?: string } = {},
+  scope: { employeeId?: string } = {},
 ): Promise<CalendarEvent[]> {
   const rows = await db.vacationRequest.findMany({
     where: {
       status: "APPROVED",
       startDate: { lte: toUTCDate(window.to) },
       endDate: { gte: toUTCDate(window.from) },
-      employee: {
-        isActive: true,
-        ...(scope.company ? { company: scope.company } : {}),
-        ...(scope.departmentId ? { departmentId: scope.departmentId } : {}),
-      },
+      employee: { isActive: true },
       ...(scope.employeeId ? { employeeId: scope.employeeId } : {}),
     },
-    select: { id: true, startDate: true, endDate: true, employee: { select: { name: true, department: { select: { name: true } } } } },
+    select: { id: true, startDate: true, endDate: true, employee: { select: { name: true } } },
     orderBy: { startDate: "asc" },
   });
   return rows.map((r) => ({
     id: r.id,
     employeeName: r.employee.name,
-    department: r.employee.department?.name ?? null,
     start: fromUTCDate(r.startDate),
     end: fromUTCDate(r.endDate),
   }));

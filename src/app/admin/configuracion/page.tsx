@@ -5,14 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/layout/page-header";
 import { AnnualAllocation } from "@/features/admin/components/annual-allocation";
-import { DepartmentManager } from "@/features/admin/components/department-manager";
 import { HolidayManager } from "@/features/admin/components/holiday-manager";
 import { PolicyForm } from "@/features/admin/components/policy-form";
 import { yearOf } from "@/features/vacations/domain/dates";
 import { formatDate } from "@/lib/format";
 import { db } from "@/server/db/client";
 import { requireRole } from "@/server/auth/session";
-import { listDepartments, listHolidaysForYear, listPolicies } from "@/server/admin/queries";
+import { listHolidaysForYear, listPolicies } from "@/server/admin/queries";
 import { getPolicyForDate } from "@/server/vacations/queries";
 import { todayISO } from "@/server/vacations/today";
 
@@ -25,17 +24,16 @@ export default async function AdminSettingsPage({ searchParams }: { searchParams
   const requested = Number((await searchParams).anio);
   const holidayYear = Number.isInteger(requested) && requested >= 2000 && requested <= 2100 ? requested : currentYear;
 
-  const [policies, holidays, departments, active] = await Promise.all([
+  const [policies, holidays, active] = await Promise.all([
     listPolicies(db),
     listHolidaysForYear(db, holidayYear),
-    listDepartments(db),
     getPolicyForDate(db, today),
   ]);
   const current = policies.find((p) => p.id === active.id) ?? policies[0]!;
 
   return (
     <>
-      <PageHeader title="Configuración" description="Políticas de vacaciones, festivos y departamentos." />
+      <PageHeader title="Configuración" description="Políticas de vacaciones, festivos y asignación anual." />
 
       <div className="space-y-4">
         <Card>
@@ -108,25 +106,14 @@ export default async function AdminSettingsPage({ searchParams }: { searchParams
           </CardContent>
         </Card>
 
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Departamentos</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <DepartmentManager departments={departments} />
-            </CardContent>
-          </Card>
-
-          <Card className="h-fit">
-            <CardHeader>
-              <CardTitle>Asignación anual</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <AnnualAllocation year={currentYear + 1} annualDays={active.annualDays} />
-            </CardContent>
-          </Card>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Asignación anual</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <AnnualAllocation year={currentYear + 1} annualDays={active.annualDays} />
+          </CardContent>
+        </Card>
       </div>
     </>
   );

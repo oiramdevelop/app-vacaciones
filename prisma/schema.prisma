@@ -15,12 +15,6 @@ enum Role {
   ADMIN
 }
 
-// Empresa a la que pertenece cada usuario. Comparten administradores, política y festivos.
-enum Company {
-  FLORAMARKET
-  GALACTICBLUM
-}
-
 enum RequestStatus {
   PENDING
   APPROVED
@@ -40,37 +34,27 @@ enum LedgerEntryType {
   REFUND // devolución por cancelación de una solicitud aprobada (positivo)
 }
 
-model Department {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  users User[]
-}
-
+// Todos los empleados están al mismo nivel (sin empresas ni departamentos).
+// OJO: la BD aún conserva la tabla "Department", el tipo "Company" y las columnas
+// "User"."company" / "User"."departmentId" (con valores por defecto, la app no las usa).
+// Antes de `prisma migrate dev` decide si se eliminan: el diff propondrá borrarlas.
 model User {
   id           String   @id @default(cuid())
   name         String
   email        String   @unique
   passwordHash String
   role         Role     @default(EMPLOYEE)
-  company      Company  @default(FLORAMARKET)
-  departmentId String?
   hireDate     DateTime @db.Date
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  department       Department?       @relation(fields: [departmentId], references: [id], onDelete: SetNull)
-  requests         VacationRequest[] @relation("RequestEmployee")
+  requests        VacationRequest[] @relation("RequestEmployee")
   reviewedRequests VacationRequest[] @relation("RequestReviewer")
   ledgerEntries    LedgerEntry[]     @relation("LedgerEmployee")
   createdEntries   LedgerEntry[]     @relation("LedgerCreator")
   auditLogs        AuditLog[]
 
-  @@index([departmentId])
-  @@index([company])
   @@index([role, isActive])
 }
 

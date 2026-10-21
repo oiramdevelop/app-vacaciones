@@ -15,10 +15,6 @@ function assertAdmin(actor: CurrentUser) {
 
 const firstIssue = (e: { issues: { message: string }[] }) => fail(...e.issues.map((i) => i.message));
 
-async function departmentExists(tx: Tx, departmentId: string) {
-  return departmentId === "" || (await tx.department.count({ where: { id: departmentId } })) === 1;
-}
-
 /** Evita dejar la aplicación sin ningún administrador activo. */
 async function otherActiveAdmins(tx: Tx, excludeId: string) {
   return tx.user.count({ where: { role: "ADMIN", isActive: true, id: { not: excludeId } } });
@@ -33,7 +29,6 @@ export async function createEmployee(actor: CurrentUser, raw: unknown, today: IS
 
   return db.$transaction(async (tx) => {
     if (await tx.user.findUnique({ where: { email: input.email }, select: { id: true } })) return fail("Ya existe un usuario con ese email.");
-    if (!(await departmentExists(tx, input.departmentId))) return fail("El departamento no existe.");
 
     const user = await tx.user.create({
       data: {
@@ -41,8 +36,6 @@ export async function createEmployee(actor: CurrentUser, raw: unknown, today: IS
         email: input.email,
         passwordHash,
         role: input.role,
-        company: input.company,
-        departmentId: input.departmentId || null,
         hireDate: toUTCDate(input.hireDate),
       },
     });
@@ -56,7 +49,7 @@ export async function createEmployee(actor: CurrentUser, raw: unknown, today: IS
       action: "employee.created",
       entityType: "User",
       entityId: user.id,
-      metadata: { email: input.email, role: input.role, company: input.company, initialDays: input.initialDays },
+      metadata: { email: input.email, role: input.role, initialDays: input.initialDays },
     });
     return { ok: true, id: user.id };
   });
@@ -76,7 +69,6 @@ export async function updateEmployee(actor: CurrentUser, raw: unknown): Promise<
     if (input.email !== current.email && (await tx.user.findUnique({ where: { email: input.email }, select: { id: true } }))) {
       return fail("Ya existe un usuario con ese email.");
     }
-    if (!(await departmentExists(tx, input.departmentId))) return fail("El departamento no existe.");
 
     if (current.role === "ADMIN" && input.role !== "ADMIN") {
       if (id === actor.id) return fail("No puedes quitarte a ti mismo el rol de administrador.");
@@ -87,8 +79,6 @@ export async function updateEmployee(actor: CurrentUser, raw: unknown): Promise<
       input.name !== current.name && "name",
       input.email !== current.email && "email",
       input.role !== current.role && "role",
-      input.company !== current.company && "company",
-      input.departmentId !== (current.departmentId ?? "") && "departmentId",
       input.hireDate !== current.hireDate.toISOString().slice(0, 10) && "hireDate",
     ].filter(Boolean);
 
@@ -98,8 +88,6 @@ export async function updateEmployee(actor: CurrentUser, raw: unknown): Promise<
         name: input.name,
         email: input.email,
         role: input.role,
-        company: input.company,
-        departmentId: input.departmentId || null,
         hireDate: toUTCDate(input.hireDate),
         ...(passwordHash ? { passwordHash } : {}),
       },

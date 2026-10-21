@@ -27,9 +27,9 @@ const adminCalls = () => ({
   reject: () => adminActions.rejectRequestAction({ requestId, reason: "Motivo" }),
   cancelApproved: () => adminActions.cancelApprovedRequestAction(requestId),
   createEmployee: () =>
-    adminActions.createEmployeeAction({ name: "Intruso", email: "intruso@test.local", company: "FLORAMARKET", departmentId: "", hireDate: "2026-01-01", role: "ADMIN", password: "contraseña-larga-1", initialDays: 99 }),
+    adminActions.createEmployeeAction({ name: "Intruso", email: "intruso@test.local", hireDate: "2026-01-01", role: "ADMIN", password: "contraseña-larga-1", initialDays: 99 }),
   updateEmployee: () =>
-    adminActions.updateEmployeeAction({ id: ana.id, name: "X", email: ana.email, company: "FLORAMARKET", departmentId: "", hireDate: "2020-01-01", role: "ADMIN", newPassword: "" }),
+    adminActions.updateEmployeeAction({ id: ana.id, name: "X", email: ana.email, hireDate: "2020-01-01", role: "ADMIN", newPassword: "" }),
   setActive: () => adminActions.setEmployeeActiveAction(admin.id, false),
   adjust: () => adminActions.adjustBalanceAction({ employeeId: ana.id, year: 2026, days: 50, reason: "Intruso" }),
   allocate: () => adminActions.allocateAnnualDaysAction(2027),
@@ -40,9 +40,6 @@ const adminCalls = () => ({
     }),
   addHoliday: () => adminActions.addHolidayAction({ date: "2026-12-26", name: "X", region: "" }),
   removeHoliday: () => adminActions.removeHolidayAction("x"),
-  createDept: () => adminActions.createDepartmentAction({ name: "Intrusos" }),
-  renameDept: () => adminActions.renameDepartmentAction("x", { name: "Y" }),
-  deleteDept: () => adminActions.deleteDepartmentAction("x"),
 });
 
 async function snapshotState() {
@@ -53,7 +50,7 @@ async function snapshotState() {
     db.vacationPolicy.count(),
     db.auditLog.count(),
   ]);
-  return JSON.stringify({ users, requests, ledger, policies, audit, depts: await db.department.count(), holidays: await db.holiday.count() });
+  return JSON.stringify({ users, requests, ledger, policies, audit, holidays: await db.holiday.count() });
 }
 
 beforeEach(async () => {
@@ -105,7 +102,7 @@ describe("acceso no autorizado a acciones de administración", () => {
 
     await db.user.update({ where: { id: second.id }, data: { isActive: false } });
     expect(await getCurrentUser()).toBeNull();
-    await expect(adminActions.createDepartmentAction({ name: "Tras desactivar" })).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(adminActions.addHolidayAction({ date: "2026-12-26", name: "Tras desactivar", region: "" })).rejects.toBeInstanceOf(ForbiddenError);
   });
 
   it("un usuario eliminado con JWT vigente no tiene acceso", async () => {

@@ -22,7 +22,6 @@ import { cn } from "@/lib/utils";
 export interface CalendarAbsence {
   id: string;
   employeeName: string;
-  department: string | null;
   start: string; // yyyy-MM-dd
   end: string;
 }
@@ -41,12 +40,10 @@ export function VacationCalendar({
   absences,
   holidays,
   today,
-  showDepartment = false,
 }: {
   absences: CalendarAbsence[];
   holidays: CalendarHoliday[];
   today: string;
-  showDepartment?: boolean;
 }) {
   const [view, setView] = useState<View>("month");
   const [cursor, setCursor] = useState(() => parseISO(today));
@@ -180,7 +177,6 @@ export function VacationCalendar({
               <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
                 <span className="font-medium">{a.employeeName}</span>
                 <span className="text-muted-foreground">
-                  {showDepartment && a.department ? `${a.department} · ` : ""}
                   {format(parseISO(a.start), "d MMM", { locale: es })} – {format(parseISO(a.end), "d MMM", { locale: es })}
                 </span>
               </li>

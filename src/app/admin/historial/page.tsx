@@ -23,9 +23,6 @@ const ACTION_LABELS: Record<string, string> = {
   "policy.version_created": "Nueva versión de política",
   "holiday.created": "Festivo añadido",
   "holiday.deleted": "Festivo eliminado",
-  "department.created": "Departamento creado",
-  "department.renamed": "Departamento renombrado",
-  "department.deleted": "Departamento eliminado",
 };
 
 export default async function AuditPage() {

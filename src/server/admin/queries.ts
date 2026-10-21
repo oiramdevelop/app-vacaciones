@@ -2,7 +2,6 @@ import "server-only";
 import { addDays, fromUTCDate, toUTCDate, type ISODate } from "@/features/vacations/domain/dates";
 import { countComputableDays, type CountingRules } from "@/features/vacations/domain/calculate-days";
 import type { YearBalance } from "@/features/vacations/domain/balance";
-import type { Company } from "@/features/companies";
 import { getBalancesForEmployees, type DbClient } from "@/server/vacations/queries";
 
 const MONTHS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
@@ -13,31 +12,29 @@ function weekStart(today: ISODate): ISODate {
   return addDays(today, -offset);
 }
 
-/** `company` undefined = las dos empresas. */
-export async function getAdminDashboard(db: DbClient, today: ISODate, company?: Company) {
+export async function getAdminDashboard(db: DbClient, today: ISODate) {
   const year = Number(today.slice(0, 4));
   const todayDate = toUTCDate(today);
-  const byCompany = company ? { company } : {};
 
   const [activeEmployees, onVacationNow, pendingCount, receivedThisWeek, pending, upcoming, approvedInYear, holidays] = await Promise.all([
-    db.user.count({ where: { isActive: true, role: "EMPLOYEE", ...byCompany } }),
-    db.vacationRequest.count({ where: { status: "APPROVED", startDate: { lte: todayDate }, endDate: { gte: todayDate }, employee: { isActive: true, ...byCompany } } }),
-    db.vacationRequest.count({ where: { status: "PENDING", employee: byCompany } }),
-    db.vacationRequest.count({ where: { createdAt: { gte: toUTCDate(weekStart(today)) }, employee: byCompany } }),
+    db.user.count({ where: { isActive: true, role: "EMPLOYEE" } }),
+    db.vacationRequest.count({ where: { status: "APPROVED", startDate: { lte: todayDate }, endDate: { gte: todayDate }, employee: { isActive: true } } }),
+    db.vacationRequest.count({ where: { status: "PENDING" } }),
+    db.vacationRequest.count({ where: { createdAt: { gte: toUTCDate(weekStart(today)) } } }),
     db.vacationRequest.findMany({
-      where: { status: "PENDING", employee: byCompany },
+      where: { status: "PENDING" },
       orderBy: { createdAt: "asc" },
       take: 5,
-      include: { employee: { select: { name: true, company: true, department: { select: { name: true } } } } },
+      include: { employee: { select: { name: true } } },
     }),
     db.vacationRequest.findMany({
-      where: { status: "APPROVED", endDate: { gte: todayDate }, employee: { isActive: true, ...byCompany } },
+      where: { status: "APPROVED", endDate: { gte: todayDate }, employee: { isActive: true } },
       orderBy: { startDate: "asc" },
       take: 6,
-      include: { employee: { select: { name: true, company: true } } },
+      include: { employee: { select: { name: true } } },
     }),
     db.vacationRequest.findMany({
-      where: { status: "APPROVED", startDate: { lte: toUTCDate(`${year}-12-31`) }, endDate: { gte: toUTCDate(`${year}-01-01`) }, employee: byCompany },
+      where: { status: "APPROVED", startDate: { lte: toUTCDate(`${year}-12-31`) }, endDate: { gte: toUTCDate(`${year}-01-01`) } },
       select: { startDate: true, endDate: true, policySnapshot: true },
     }),
     db.holiday.findMany({ where: { date: { gte: toUTCDate(`${year}-01-01`), lte: toUTCDate(`${year}-12-31`) } }, select: { date: true } }),
@@ -65,8 +62,6 @@ export async function getAdminDashboard(db: DbClient, today: ISODate, company?: 
     pending: pending.map((r) => ({
       id: r.id,
       employee: r.employee.name,
-      company: r.employee.company,
-      department: r.employee.department?.name ?? null,
       start: fromUTCDate(r.startDate),
       end: fromUTCDate(r.endDate),
       totalDays: r.totalDays,
@@ -74,7 +69,6 @@ export async function getAdminDashboard(db: DbClient, today: ISODate, company?: 
     upcoming: upcoming.map((r) => ({
       id: r.id,
       employee: r.employee.name,
-      company: r.employee.company,
       start: fromUTCDate(r.startDate),
       end: fromUTCDate(r.endDate),
       totalDays: r.totalDays,
@@ -87,18 +81,13 @@ export interface EmployeeRow {
   name: string;
   email: string;
   role: "EMPLOYEE" | "ADMIN";
-  company: Company;
-  departmentId: string | null;
-  department: string | null;
   hireDate: ISODate;
   isActive: boolean;
   balance: YearBalance;
 }
 
-export async function listEmployees(db: DbClient, year: number, today: ISODate, company?: Company): Promise<EmployeeRow[]> {
+export async function listEmployees(db: DbClient, year: number, today: ISODate): Promise<EmployeeRow[]> {
   const users = await db.user.findMany({
-    where: company ? { company } : {},
-    include: { department: { select: { name: true } } },
     orderBy: [{ isActive: "desc" }, { name: "asc" }],
   });
   const balances = await getBalancesForEmployees(db, users.map((u) => u.id), year, today);
@@ -107,9 +96,6 @@ export async function listEmployees(db: DbClient, year: number, today: ISODate, 
     name: u.name,
     email: u.email,
     role: u.role,
-    company: u.company,
-    departmentId: u.departmentId,
-    department: u.department?.name ?? null,
     hireDate: fromUTCDate(u.hireDate),
     isActive: u.isActive,
     balance: balances.get(u.id)!,
@@ -119,8 +105,6 @@ export async function listEmployees(db: DbClient, year: number, today: ISODate, 
 export interface AdminRequestRow {
   id: string;
   employee: string;
-  company: Company;
-  department: string | null;
   start: ISODate;
   end: ISODate;
   totalDays: number;
@@ -134,27 +118,21 @@ export interface AdminRequestRow {
 
 export async function listAllRequests(
   db: DbClient,
-  filter: { status?: AdminRequestRow["status"]; company?: Company; departmentId?: string; employeeId?: string },
+  filter: { status?: AdminRequestRow["status"]; employeeId?: string },
   today: ISODate,
 ): Promise<AdminRequestRow[]> {
   const rows = await db.vacationRequest.findMany({
     where: {
       ...(filter.status ? { status: filter.status } : {}),
       ...(filter.employeeId ? { employeeId: filter.employeeId } : {}),
-      employee: {
-        ...(filter.company ? { company: filter.company } : {}),
-        ...(filter.departmentId ? { departmentId: filter.departmentId } : {}),
-      },
     },
-    include: { employee: { select: { name: true, company: true, department: { select: { name: true } } } } },
+    include: { employee: { select: { name: true } } },
     orderBy: [{ createdAt: "desc" }],
     take: 300,
   });
   return rows.map((r) => ({
     id: r.id,
     employee: r.employee.name,
-    company: r.employee.company,
-    department: r.employee.department?.name ?? null,
     start: fromUTCDate(r.startDate),
     end: fromUTCDate(r.endDate),
     totalDays: r.totalDays,
@@ -192,7 +170,3 @@ export async function listHolidaysForYear(db: DbClient, year: number) {
   return rows.map((h) => ({ id: h.id, date: fromUTCDate(h.date), name: h.name, region: h.region }));
 }
 
-export async function listDepartments(db: DbClient) {
-  const rows = await db.department.findMany({ orderBy: { name: "asc" }, include: { _count: { select: { users: true } } } });
-  return rows.map((d) => ({ id: d.id, name: d.name, employees: d._count.users }));
-}

@@ -8,7 +8,7 @@ export const YEAR = 2026;
 
 export async function resetDb() {
   await db.$executeRawUnsafe(
-    'TRUNCATE TABLE "AuditLog", "LedgerEntry", "VacationRequest", "Holiday", "VacationPolicy", "User", "Department", "LoginThrottle" RESTART IDENTITY CASCADE',
+    'TRUNCATE TABLE "AuditLog", "LedgerEntry", "VacationRequest", "Holiday", "VacationPolicy", "User", "LoginThrottle" RESTART IDENTITY CASCADE',
   );
 }
 
@@ -27,7 +27,7 @@ export async function createPolicy(overrides: Partial<Parameters<typeof db.vacat
   });
 }
 
-export async function createUser(role: "EMPLOYEE" | "ADMIN", name: string, opts: { allocate?: number; year?: number; departmentId?: string } = {}) {
+export async function createUser(role: "EMPLOYEE" | "ADMIN", name: string, opts: { allocate?: number; year?: number } = {}) {
   const user = await db.user.create({
     data: {
       name,
@@ -35,7 +35,6 @@ export async function createUser(role: "EMPLOYEE" | "ADMIN", name: string, opts:
       passwordHash: "x",
       role,
       hireDate: toUTCDate("2020-01-01"),
-      departmentId: opts.departmentId,
     },
   });
   if (opts.allocate) {
@@ -44,8 +43,8 @@ export async function createUser(role: "EMPLOYEE" | "ADMIN", name: string, opts:
   return { user, actor: toActor(user) };
 }
 
-export function toActor(u: Pick<CurrentUser, "id" | "name" | "email" | "role" | "company" | "departmentId">): CurrentUser {
-  return { id: u.id, name: u.name, email: u.email, role: u.role, company: u.company, departmentId: u.departmentId };
+export function toActor(u: CurrentUser): CurrentUser {
+  return { id: u.id, name: u.name, email: u.email, role: u.role };
 }
 
 export async function addHoliday(date: string, name = "Festivo") {

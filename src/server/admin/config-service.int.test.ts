@@ -3,7 +3,7 @@ import { db } from "@/server/db/client";
 import { ForbiddenError } from "@/server/auth/errors";
 import { getPolicyForDate } from "@/server/vacations/queries";
 import { createPolicy, createUser, resetDb } from "../../../tests/helpers";
-import { addHoliday, createDepartment, deleteDepartment, removeHoliday, renameDepartment, savePolicyVersion } from "./config-service";
+import { addHoliday, removeHoliday, savePolicyVersion } from "./config-service";
 
 const policyInput = (over: Record<string, unknown> = {}) => ({
   name: "Nueva política",
@@ -69,22 +69,5 @@ describe("festivos", () => {
     expect((await removeHoliday(admin, holiday.id)).ok).toBe(true);
     expect(await db.holiday.count()).toBe(1);
     await expect(addHoliday(ana, { date: "2026-12-26", name: "X", region: "" })).rejects.toBeInstanceOf(ForbiddenError);
-  });
-});
-
-describe("departamentos", () => {
-  it("crea, renombra y elimina sólo si no tiene empleados", async () => {
-    expect((await createDepartment(admin, { name: "Ventas" })).ok).toBe(true);
-    expect((await createDepartment(admin, { name: "Ventas" })).ok).toBe(false);
-
-    const dept = await db.department.findFirstOrThrow({ where: { name: "Ventas" } });
-    expect((await renameDepartment(admin, dept.id, { name: "Comercial" })).ok).toBe(true);
-
-    await db.user.update({ where: { id: ana.id }, data: { departmentId: dept.id } });
-    expect((await deleteDepartment(admin, dept.id)).ok).toBe(false);
-
-    await db.user.update({ where: { id: ana.id }, data: { departmentId: null } });
-    expect((await deleteDepartment(admin, dept.id)).ok).toBe(true);
-    await expect(deleteDepartment(ana, dept.id)).rejects.toBeInstanceOf(ForbiddenError);
   });
 });

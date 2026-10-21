@@ -5,18 +5,16 @@ import { Scale, Pencil, UserCheck, UserX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { setEmployeeActiveAction } from "../actions";
 import { AdjustBalanceDialog } from "./adjust-balance-dialog";
-import { EmployeeDialog, type DepartmentOption, type EmployeeFormTarget } from "./employee-dialog";
+import { EmployeeDialog, type EmployeeFormTarget } from "./employee-dialog";
 
 export function EmployeeRowActions({
   employee,
-  departments,
   isActive,
   isSelf,
   year,
   available,
 }: {
   employee: EmployeeFormTarget;
-  departments: DepartmentOption[];
   isActive: boolean;
   isSelf: boolean;
   year: number;
@@ -38,7 +36,6 @@ export function EmployeeRowActions({
       <div className="flex items-center justify-end gap-1">
         <EmployeeDialog
           employee={employee}
-          departments={departments}
           defaultDays={0}
           trigger={
             <Button variant="ghost" size="icon" className="size-8" title="Editar" aria-label={`Editar a ${employee.name}`}>

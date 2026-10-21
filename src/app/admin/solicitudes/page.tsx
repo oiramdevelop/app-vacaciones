@@ -4,31 +4,26 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select } from "@/components/ui/field";
 import { PageHeader } from "@/components/layout/page-header";
-import { CompanySelect } from "@/features/admin/components/company-filter";
 import { RequestActions } from "@/features/admin/components/request-actions";
-import { COMPANY_LABELS, parseCompany } from "@/features/companies";
 import { StatusBadge } from "@/features/vacations/components/status-badge";
 import { requestStatusSchema } from "@/features/vacations/schemas";
 import { formatDate, formatRange } from "@/lib/format";
 import { db } from "@/server/db/client";
 import { requireRole } from "@/server/auth/session";
-import { listAllRequests, listDepartments } from "@/server/admin/queries";
+import { listAllRequests } from "@/server/admin/queries";
 import { todayISO } from "@/server/vacations/today";
 
 export const metadata: Metadata = { title: "Solicitudes" };
 
 const STATUS_LABELS = { PENDING: "Pendientes", APPROVED: "Aprobadas", REJECTED: "Rechazadas", CANCELLED: "Canceladas" } as const;
 
-export default async function AdminRequestsPage({ searchParams }: { searchParams: Promise<{ estado?: string; empresa?: string; departamento?: string }> }) {
+export default async function AdminRequestsPage({ searchParams }: { searchParams: Promise<{ estado?: string }> }) {
   await requireRole("ADMIN");
   const params = await searchParams;
-  const company = parseCompany(params.empresa);
   // Por defecto se muestran las pendientes: es lo que requiere acción.
   const status = params.estado === "todas" ? undefined : (requestStatusSchema.safeParse(params.estado ?? "PENDING").data ?? "PENDING");
 
-  const departments = await listDepartments(db);
-  const departmentId = departments.some((d) => d.id === params.departamento) ? params.departamento : undefined;
-  const requests = await listAllRequests(db, { status, company, departmentId }, todayISO());
+  const requests = await listAllRequests(db, { status }, todayISO());
 
   return (
     <>
@@ -41,16 +36,6 @@ export default async function AdminRequestsPage({ searchParams }: { searchParams
             <option value="todas">Todos</option>
             {Object.entries(STATUS_LABELS).map(([v, l]) => (
               <option key={v} value={v}>{l}</option>
-            ))}
-          </Select>
-        </div>
-        <CompanySelect current={company} />
-        <div className="space-y-1">
-          <label htmlFor="departamento" className="text-xs font-medium text-muted-foreground">Departamento</label>
-          <Select id="departamento" name="departamento" defaultValue={departmentId ?? ""} className="w-48">
-            <option value="">Todos</option>
-            {departments.map((d) => (
-              <option key={d.id} value={d.id}>{d.name}</option>
             ))}
           </Select>
         </div>
@@ -81,9 +66,6 @@ export default async function AdminRequestsPage({ searchParams }: { searchParams
                   <tr key={r.id} className="align-top">
                     <td className="px-4 py-3">
                       <p className="font-medium">{r.employee}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {COMPANY_LABELS[r.company]} · {r.department ?? "Sin departamento"}
-                      </p>
                     </td>
                     <td className="px-4 py-3">
                       <p>{formatRange(r.start, r.end)}</p>

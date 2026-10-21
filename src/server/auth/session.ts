@@ -3,7 +3,6 @@ import { cache } from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { LOGIN_PATH, roleHomePath, type AppRole } from "@/features/auth/access";
-import type { Company } from "@/features/companies";
 import { db } from "@/server/db/client";
 import { ForbiddenError } from "./errors";
 
@@ -14,8 +13,6 @@ export interface CurrentUser {
   name: string;
   email: string;
   role: AppRole;
-  company: Company;
-  departmentId: string | null;
 }
 
 /**
@@ -29,10 +26,10 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
 
   const user = await db.user.findUnique({
     where: { id },
-    select: { id: true, name: true, email: true, role: true, company: true, departmentId: true, isActive: true },
+    select: { id: true, name: true, email: true, role: true, isActive: true },
   });
   if (!user || !user.isActive) return null;
-  return { id: user.id, name: user.name, email: user.email, role: user.role, company: user.company, departmentId: user.departmentId };
+  return { id: user.id, name: user.name, email: user.email, role: user.role };
 });
 
 export async function requireUser(): Promise<CurrentUser> {

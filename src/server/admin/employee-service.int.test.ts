@@ -9,8 +9,6 @@ import { adjustBalance, allocateAnnualDays, createEmployee, setEmployeeActive, u
 const newEmployee = (over: Record<string, unknown> = {}) => ({
   name: "Nuevo Empleado",
   email: "Nuevo@Test.Local",
-  company: "GALACTICBLUM",
-  departmentId: "",
   hireDate: "2026-10-01",
   role: "EMPLOYEE",
   password: "una-contraseña-larga",
@@ -36,7 +34,6 @@ describe("createEmployee", () => {
 
     const user = await db.user.findUniqueOrThrow({ where: { id: result.id } });
     expect(user.email).toBe("nuevo@test.local"); // normalizado
-    expect(user.company).toBe("GALACTICBLUM");
     expect(user.passwordHash).not.toContain("una-contraseña");
     expect(await verifyPassword("una-contraseña-larga", user.passwordHash)).toBe(true);
     expect(await ledgerSum(user.id)).toBe(22);
@@ -45,12 +42,10 @@ describe("createEmployee", () => {
     expect(JSON.stringify(audit.metadata)).not.toContain("una-contraseña");
   });
 
-  it("rechaza email duplicado (sin distinguir mayúsculas), contraseña corta y departamento inexistente", async () => {
+  it("rechaza email duplicado (sin distinguir mayúsculas) y contraseña corta", async () => {
     await createEmployee(admin, newEmployee(), TODAY);
     expect((await createEmployee(admin, newEmployee({ email: "NUEVO@test.local" }), TODAY)).ok).toBe(false);
     expect((await createEmployee(admin, newEmployee({ email: "otro@test.local", password: "corta" }), TODAY)).ok).toBe(false);
-    expect((await createEmployee(admin, newEmployee({ email: "otro@test.local", departmentId: "no-existe" }), TODAY)).ok).toBe(false);
-    expect((await createEmployee(admin, newEmployee({ email: "otro@test.local", company: "OTRA" }), TODAY)).ok).toBe(false);
     expect(await db.user.count({ where: { email: { startsWith: "otro" } } })).toBe(0);
   });
 
@@ -65,8 +60,6 @@ describe("updateEmployee / setEmployeeActive", () => {
     id,
     name: "Ana García",
     email: "ana@test.local",
-    company: "FLORAMARKET",
-    departmentId: "",
     hireDate: "2020-01-01",
     role: "EMPLOYEE",
     newPassword: "",
@@ -75,10 +68,9 @@ describe("updateEmployee / setEmployeeActive", () => {
 
   it("edita datos y cambia la contraseña sólo si se indica", async () => {
     const before = (await db.user.findUniqueOrThrow({ where: { id: ana.id } })).passwordHash;
-    expect((await updateEmployee(admin, edit(ana.id, { company: "GALACTICBLUM" }))).ok).toBe(true);
+    expect((await updateEmployee(admin, edit(ana.id))).ok).toBe(true);
     const after = await db.user.findUniqueOrThrow({ where: { id: ana.id } });
     expect(after.name).toBe("Ana García");
-    expect(after.company).toBe("GALACTICBLUM");
     expect(after.passwordHash).toBe(before);
 
     expect((await updateEmployee(admin, edit(ana.id, { newPassword: "nueva-contraseña-1" }))).ok).toBe(true);
