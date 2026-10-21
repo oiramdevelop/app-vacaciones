@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut, Palmtree } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { logoutAction } from "@/features/auth/actions";
+import { AppLogo } from "./app-logo";
 import { isActive, NAV_ITEMS, type AppRole } from "@/features/navigation/nav-items";
 
 export interface SidebarUser {
@@ -30,9 +31,7 @@ export function SidebarContent({ user, onNavigate }: { user: SidebarUser; onNavi
   return (
     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
       <div className="flex h-16 items-center gap-2.5 border-b border-sidebar-border px-5">
-        <span className="flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
-          <Palmtree className="size-4" />
-        </span>
+        <AppLogo size={32} />
         <div className="leading-tight">
           <p className="text-sm font-semibold">Vacaciones</p>
           <p className="text-xs text-sidebar-muted">{user.role === "ADMIN" ? "Administración" : "Portal del empleado"}</p>

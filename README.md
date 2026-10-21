@@ -89,7 +89,8 @@ public/            sw.js (service worker mínimo) y offline.html
 
 ## PWA (instalable)
 
-`/manifest.webmanifest`, iconos generados (`/pwa-icon/*`, `icon`, `apple-icon`) y un service worker mínimo (`public/sw.js`) que sólo muestra
+`/manifest.webmanifest`, iconos PNG sacados del logo (`branding/logo-vacaciones.png` → `public/pwa-icon/*`, `src/app/icon.png`,
+`src/app/apple-icon.png`, `src/assets/logo.png`) y un service worker mínimo (`public/sw.js`) que sólo muestra
 `offline.html` si falla una navegación. **No cachea páginas ni datos** (son datos personales y los saldos deben venir siempre del servidor).
 Requiere HTTPS en producción. Android/Chrome/Edge: icono "Instalar"; iPhone: Compartir → Añadir a pantalla de inicio.
 Para una app de tienda (Capacitor) o de escritorio (Tauri/Electron) habría que envolver esta misma URL; la app necesita servidor y BD propios.

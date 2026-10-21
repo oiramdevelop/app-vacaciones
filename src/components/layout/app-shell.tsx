@@ -1,4 +1,4 @@
-import { Palmtree } from "lucide-react";
+import { AppLogo } from "./app-logo";
 import { MobileNav } from "./mobile-nav";
 import { SidebarContent, type SidebarUser } from "./sidebar-content";
 
@@ -20,7 +20,7 @@ export function AppShell({ user, children }: { user: SidebarUser; children: Reac
         <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-card px-3 lg:hidden">
           <MobileNav user={user} />
           <span className="flex items-center gap-2 text-sm font-semibold">
-            <Palmtree className="size-4 text-primary" />
+            <AppLogo size={24} />
             Vacaciones
           </span>
         </header>
